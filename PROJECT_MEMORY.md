@@ -158,3 +158,13 @@ ot debe ser de 32 bits para desempaquetar ~idx.
   `o2 < cap` (un WCHAR de mas, justo en los registros guardados del worker).
 - El target `x86_64-pc-windows-gnu` faltaba en el toolchain activo de rustup
   (lo reinstale con `rustup target add x86_64-pc-windows-gnu`).
+
+## 2026-10-20 — Repo git inicializado y publicado
+
+- `seek-asm` paso a ser repo git (antes no lo era): `git init -b main` + primer
+  commit con los 19 archivos fuente (asm, rust, rc, manifests, docs).
+- `.gitignore` nuevo: excluye `*.exe`, `*.o`, `*.a`, `*.res` (generados por
+  windres), `rs/seekcore/target/`, `*.log` y `dump/`.
+- Publicado en https://github.com/Owning01/seek-asm (repo **publico**, rama `main`).
+- Verificado antes de publicar: sin tokens/keys en el arbol (los `ghp_*` del ASM
+  son etiquetas internas, no secretos).
