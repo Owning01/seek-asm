@@ -1,0 +1,14 @@
+# binarios y objetos generados por el build
+*.exe
+*.o
+*.a
+*.res
+*.d
+
+# rust: target/ (compilacion de seekcore)
+rs/seekcore/target/
+
+# locales de prueba / logs
+*.log
+*.tmp
+dump/

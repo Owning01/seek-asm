@@ -1,0 +1,16 @@
+[package]
+name = "seekcore"
+version = "0.1.0"
+edition = "2021"
+
+# Staticlib puro: seek.asm (GCC MinGW) linkea libseekcore.a sin libs extra.
+# no_std + panic=abort => cero runtime (sin std, sin eh, sin linker de rust).
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"
+strip = true
