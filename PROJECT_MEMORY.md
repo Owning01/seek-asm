@@ -168,3 +168,23 @@ ot debe ser de 32 bits para desempaquetar ~idx.
 - Publicado en https://github.com/Owning01/seek-asm (repo **publico**, rama `main`).
 - Verificado antes de publicar: sin tokens/keys en el arbol (los `ghp_*` del ASM
   son etiquetas internas, no secretos).
+
+## 2026-10-20 — Crash de arranque: causa raiz (desbalance de pila) + firma OK
+
+- **Crash preexistente resuelto**: `gui_start_index` reservaba 80 bytes de marco
+  (`sub rsp, 80`) pero liberaba 72 (`add rsp, 72`). El `ret` tomaba como
+  direccion de retorno el `rbx` guardado, que en WinMain es **hInstance = la base
+  del modulo**: el PC caia en la cabecera MZ del exe (0xC0000005 a los 4-7 s, con
+  la pila corrupta). Fix: `add rsp, 80`.
+- Segundo bug: la tabla de firmas se reservaba con MEM_RESERVE **sin commitear**,
+  y el `*out = m` de `skc_bloom_build` fault-eaba. Fix: MEM_RESERVE|MEM_COMMIT.
+- Metodo de diagnostico que funciono (el WER dump no salia y cdb no esta
+  instalado): instrumentar con un contador en .bss (`gui_stage`) leido con
+  ReadProcessMemory desde otro proceso, y `gdb -batch` con `catch signal
+  SIGSEGV`. La pista decisiva: el PC en la base del modulo = hInstance, que
+  senala a un desbalance de pila, no a un bug de logica.
+- **Trampa**: en GAS, `//` al final de una linea es division (comentario solo en
+  linea propia) y `;` NO es comentario en estos .s.
+- Firma de 64 bits verificada con A/B (mismos conteos, 10-30x mas rapido):
+  perca 388 en 15 ms (170 ms sin firma), proyecto 148 en 6 ms (136 ms),
+  Documentos 5 en 7 ms (187 ms), zzlat 0 en 5 ms (141 ms).

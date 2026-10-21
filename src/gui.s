@@ -2342,7 +2342,7 @@ gui_start_index:
     // VirtualAlloc(lpAddress=NULL, dwSize=96MB, MEM_RESERVE, PAGE_READWRITE)
     xor ecx, ecx
     mov edx, 0x6000000
-    mov r8d, 0x2000
+    mov r8d, 0x3000
     mov r9d, 4
     xor r10d, r10d
     call VirtualAlloc
@@ -2385,7 +2385,7 @@ gsi_thfail:
     lea rax, [rip + gui_idx_ws]
     mov QWORD PTR [rax], 0
 gsi_ret:
-    add rsp, 72
+    add rsp, 80
     pop rbx
     ret
 

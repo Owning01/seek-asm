@@ -303,3 +303,23 @@ Corregido de paso (bugs reales de memoria, del cache de rutas):
 - `skc_score_rec`: la escritura del separador `\` no comprobaba `o2 < cap` -> un
   WCHAR de mas al final del path (justo donde el worker tiene los registros
   guardados en la pila).
+
+## Crash al arrancar: causa raiz y arreglo (2026-10-20)
+
+La app murria 4-7 s despues de abrir (0xC0000005) y se trababa antes de cerrar.
+Causa raiz: **desbalance de 8 bytes en el marco de `gui_start_index`** (el epilogue
+liberaba 72 con `add rsp, 72` pero el prologo reservaba 80 con `sub rsp, 80`).
+El `ret` final saltaba 8 bytes antes de lo debido y tomaba como direccion de
+retorno el `rbx` guardado = **hInstance = la base del modulo**: el PC quedaba en
+la cabecera MZ del propio seek-gui.exe y el proceso muria al ejecutar los
+primeros bytes del encabezado PE. La sintoma era exactamente "se traba y se
+cierra rapido".
+Arreglo: `add rsp, 72` -> `add rsp, 80` en `gsi_ret`.
+
+Segundo bug (mismo arranque): la tabla de firmas de 96 MB se reservaba con
+`MEM_RESERVE` **sin commitear**, asi que el `*out = m` de `skc_bloom_build`
+fault-eaba (AV al escribir). Arreglo: `MEM_RESERVE|MEM_COMMIT` (0x3000).
+
+Verificado: la app vive (>5 min, index completo, CPU ociosa), y el filtro por
+nombre con la firma da 5-15 ms contra 136-187 ms sin ella, con conteos
+identicos (A/B: perca 388, proyecto 148, Documentos 5, zzlat 0).
