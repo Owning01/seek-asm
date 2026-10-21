@@ -188,3 +188,25 @@ ot debe ser de 32 bits para desempaquetar ~idx.
 - Firma de 64 bits verificada con A/B (mismos conteos, 10-30x mas rapido):
   perca 388 en 15 ms (170 ms sin firma), proyecto 148 en 6 ms (136 ms),
   Documentos 5 en 7 ms (187 ms), zzlat 0 en 5 ms (141 ms).
+
+## 2026-10-21 — Crash por scroll: carrera con la reparacion + stack overflow
+
+- **Causa raiz del crash por scroll** (reportado por el usuario: "estaba
+  buscando, hice un scroll y se cerro todo"): `gui_idx_path` (ruta de cada fila
+  pintada) usaba `build_path` + `scan_ws_path`, que leen los buffers del ws
+  (WB_SEG/WB_DIRPATH/BPCIDX) que la **reparacion** (`gui_repair` ->
+  `scan_root_ws`) reescribe **en otro hilo** mientras se pinta -> path corrupto
+  -> AV. `gui_busy` solo cubria la busqueda, no el scroll.
+  Fix: `skc_path_for` (Rust) arma la ruta solo con el array de records (sin
+  cache ni buffers del ws).
+- **Stack overflow** en la misma funcion: la rama `gip_indexing` recolecta 128
+  segmentos x 16 B desde rsp+128 (hasta rsp+2176) con frame de 2112 B -> 64 B
+  de mas, pisando la direccion de retorno. Fix: frame 2224 en prologue y
+  epilogue.
+- Se agrego `gui_pathw` (64 KB) como buffer WCHAR propio para esa ruta.
+- Escribi `frameck.c` (verificador de desbalances de pila por funcion: compara
+  `sub rsp` vs `add rsp` en el desensamblado): **0 desbalances** en todo el
+  binario. Es la herramienta que habria encontrado el bug del arranque.
+- Trampa: `mov rdx, r11d` y `mov r9, 32768` son invalidos en el dialecto
+  intel de GAS (inmediato de 32 a 64 bits no se sign-extiende): usar
+  `mov edx, r11d` / `mov r9d, 32768`.

@@ -323,3 +323,27 @@ fault-eaba (AV al escribir). Arreglo: `MEM_RESERVE|MEM_COMMIT` (0x3000).
 Verificado: la app vive (>5 min, index completo, CPU ociosa), y el filtro por
 nombre con la firma da 5-15 ms contra 136-187 ms sin ella, con conteos
 identicos (A/B: perca 388, proyecto 148, Documentos 5, zzlat 0).
+
+## Crash al hacer scroll en la lista (arreglado)
+
+Sintoma: buscando en la lista, al hacer scroll se cerraba todo.
+
+Causa raiz (dos bugs en `gui_idx_path`, la ruta que arma el path de cada fila
+pintada):
+
+1. **Carrera con la reparacion**: la rama "ready" usaba `build_path` +
+   `scan_ws_path`, que leen los buffers **del ws** (`WB_SEG`, `WB_DIRPATH`,
+   `WB_BPCIDX`). La reparacion corre en **otro hilo** (`gui_repair` ->
+   `scan_root_ws`) y los reescribe en paralelo: el path quedaba corrupto y el
+   AV venia ahi. La guarda `gui_busy` solo cubria la busqueda, no el pintado.
+   Arreglo: usar `skc_path_for` (Rust), que arma la ruta leyendo **solo** el
+   array de records, sin cache ni buffers compartidos.
+2. **Desbordamiento de pila**: la rama `gip_indexing` (mientras indexa)
+   recolecta hasta 128 segmentos de 16 B desde `rsp+128`, o sea hasta
+   `rsp+2176`, con un frame de 2112 B -> se pasaban 64 B de la pila (encima de
+   la direccion de retorno). Arreglo: frame 2224 (16-aligned) en prologue y
+   epilogue.
+
+Verificado: el verificador de marcos (`frameck.c`) no reporta ningun desbalance
+en todo el binario, y la app sobrevive 120+ scrolls con repintado forzado
+mientras hay busqueda activa.

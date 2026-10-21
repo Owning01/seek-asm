@@ -2601,7 +2601,8 @@ gix_ret:
 // build_path + MBTWC + strip. Solo hilo UI (indexer quieto o listo).
 gui_idx_path:
     push rbx
-    sub rsp, 2112
+    // 128 segmentos x 16B desde rsp+128 = rsp+2176: frame 2224 (16-aligned)
+    sub rsp, 2224
     mov r11d, ecx
     // Race fix: build_path usa cache+buffers (BPCIDX/DIRPATH/SEG) del ws que
     // el indexer escribe en su DFS. Solo con idx_ready el ws está quieto.
@@ -2618,24 +2619,19 @@ gui_idx_path:
     mov rax, QWORD PTR [rax+rdx]
     test rax, rax
     jz gip_no
-    mov rcx, rbx
-    call build_path
-    test eax, eax
+    // skc_path_for(rec, idx, buf, buflen) -> largo en WCHAR sin NUL (0 = fallo).
+    // Arma la ruta SOLO leyendo el array de records (sin cache ni buffers del
+    // ws): la reparacion puede estar reescribiendo WB_SEG/WB_DIRPATH en otro
+    // hilo sin corromper este path.
+    mov rcx, QWORD PTR [rbx + WS_REC]
+    mov edx, r11d
+    lea r8, [rip + gui_pathw]
+    mov r9d, 32768
+    call skc_path_for
+    test rax, rax
     jz gip_no
-    mov r9d, eax
-    mov rcx, rbx
-    call scan_ws_path
-    mov r8, rax
-    mov rcx, 65001
-    xor edx, edx
-    lea rax, [rip + gui_convpath]
-    mov QWORD PTR [rsp+32], rax
-    mov QWORD PTR [rsp+40], 32768
-    call MultiByteToWideChar
-    test eax, eax
-    jz gip_no
-    lea rsi, [rip + gui_convpath]
     mov ecx, eax
+    lea rsi, [rip + gui_pathw]
     lea rdi, [rip + gui_strip]
     call gui_strip_prefix
     lea rax, [rip + gui_strip]
@@ -2765,7 +2761,7 @@ gip_idx_builtdone:
 gip_no:
     xor eax, eax
 gip_ret:
-    add rsp, 2112
+    add rsp, 2224
     pop rbx
     ret
 
@@ -7610,6 +7606,7 @@ gui_items: .space 800000
 gui_pat: .space 65536
 gui_child: .space 65536
 gui_strip: .space 65536
+gui_pathw: .space 65536
 gui_find: .space 608
 gui_drivebuf: .space 8
 gui_msg: .space 48
